@@ -30,7 +30,8 @@ public class Image2016_ implements PlugInFilter {
 	}
 
 	/**
-	 * Applique les cadres trouvés pour chaque composante connexe afin de montrer que la reconnaissance de composantes fonctionne relativement correctement
+	 * Applique les cadres trouvés pour chaque composante connexe afin de montrer que la reconnaissance de composantes
+	 * fonctionne relativement correctement
 	 * 
 	 * @param cadres
 	 *            Les cadres à appliquer
@@ -65,7 +66,7 @@ public class Image2016_ implements PlugInFilter {
 			}
 		}
 
-		//TODO A retirer quand le débuggage des composantes sera fini
+		// TODO A retirer quand le débuggage des composantes sera fini
 		if(cadres.size() > 0)
 			couleur = 255;
 		else
@@ -118,9 +119,11 @@ public class Image2016_ implements PlugInFilter {
 	 * 
 	 * @param ip
 	 *            L'image à étudier
-	 * @return composantes Les composantes connexes trouvées sous la forme suivante HashMap( index => ArrayList(Integer[x, y]) )
+	 * @return composantes Les composantes connexes trouvées sous la forme suivante HashMap( index =>
+	 *         ArrayList(Integer[x, y]) )
 	 * 
-	 *         index étant le numéro de la composante partant de 0 et s'incrémentant de 1 à chaque composante ajoutée x et y étant les coordonnées respectivement verticales et horizontales d'un pixel
+	 *         index étant le numéro de la composante partant de 0 et s'incrémentant de 1 à chaque composante ajoutée x
+	 *         et y étant les coordonnées respectivement verticales et horizontales d'un pixel
 	 */
 	public static HashMap<Integer, ArrayList<int[]>> getComposantes(ImageProcessor ip) {
 
@@ -129,33 +132,48 @@ public class Image2016_ implements PlugInFilter {
 		int couleur = 90, height = ip.getHeight(), width = ip.getWidth();
 
 		// Parcours des pixels
-		for(int y = 0; y < height; y++){
-			for(int x = 0; x < width; x++){
+		for(int y = 0; y < height + 1; y++){
+			for(int x = 0; x < width + 1; x++){
+				ArrayList<int[]> toAdd = new ArrayList<int[]>();
+				int composanteKey = -1;
 
-				// Si le pixel est de la couleur du contour et qu'il n'est pas dans les composantes
-				if(ip.getPixel(x, y) > couleur && !isVisited(composantes, x, y)){
-					int composanteKey = -1;
-					ArrayList<int[]> toAdd = new ArrayList<int[]>();
-					int[] pixel = {x, y};
-					toAdd.add(pixel);
+				// Si le pixel est d'une couleur au-dessus du seuil (donc qu'il fait partit du contour)
+				if(ip.getPixel(x, y) >= couleur){
+
+					// s'il n'est pas dans les composantes on l'indique comme étant à ajouter, autrement on prend la clé
+					// de sa composante
+					if(!isVisited(composantes, x, y)){
+						int[] pixel = {x, y};
+						toAdd.add(pixel);
+					}else{
+						composanteKey = getComposanteKey(composantes, x, y);
+					}
 
 					/*
-					 * On vérifie si les pixels autour sont dans les bonnes couleurs et s'ils font déjà parti d'une composante Voisin dans une composante ? Si le pixel sélectionné n'a pas de composante on le place dans celle-ci autrement on ajoute celle du voisin dans la composante provisoire du pixel sélectionné Voisin pas dans une composante ? On passe au suivant
+					 * On vérifie si les pixels autour sont dans les bonnes couleurs et s'ils font déjà parti d'une
+					 * composante Voisine
+					 * 
+					 * Dans une composante ? Si le pixel sélectionné n'a pas de composante on le place dans celle-ci
+					 * autrement on ajoute celle du voisin dans la composante provisoire du pixel sélectionné
+					 * 
+					 * Voisin pas dans une composante ? On passe au suivant
 					 */
-					for(int i = x - 1; i < x + 2; x++){
-						for(int j = y - 1; j < y + 2; y++){
+					for(int j = y - 1; j < y + 2; y++){
+						for(int i = x - 1; i < x + 2; x++){
 
 							// Le pixel voisin est dans les bonnes couleurs
 							if(ip.getPixel(i, j) > couleur){
 
 								// Si le voisin du pixel sélectionné fait parti d'une composante
 								if(isVisited(composantes, i, j)){
-									// Si le pixel sélectionné ne fait pas parti de composante, on le place dans celle du voisin
+									// Si le pixel sélectionné ne fait pas parti d'unr composante, on le place dans celle
+									// du voisin
 									if(composanteKey == -1){
 										composanteKey = getComposanteKey(composantes, i, j);
 									}
-									// Si le pixel sélectionné a été ajouté à une composante et qu'un voisin fait déjà parti
-									// d'une autre composante c'est que plusieurs se rejoignent : une fusion s'impose
+									// Si le pixel sélectionné a été ajouté à une composante et qu'un voisin fait déjà
+									// parti d'une autre composante c'est que plusieurs se rejoignent : une fusion
+									// s'impose
 									else if(composanteKey != getComposanteKey(composantes, i, j)){
 										int composanteKey2 = getComposanteKey(composantes, i, j);
 										ArrayList<int[]> insertInto = composantes.get(composanteKey);
@@ -178,26 +196,27 @@ public class Image2016_ implements PlugInFilter {
 									int[] pixel2 = {i, j};
 									toAdd.add(pixel2);
 								}
+
+								// Si aucune composante n'a été sélectionnée pendant l'exploration des voisins, on place la
+								// composante provisoire à la fin
+								if(composanteKey == -1)
+									composanteKey = composantes.size();
+
+								Iterator<int[]> iterator = toAdd.iterator();
+								ArrayList<int[]> insertInto = composantes.get(composanteKey);
+
+								if(insertInto == null)
+									insertInto = new ArrayList<int[]>();
+
+								// On ajoute les pixels découverts dans la composante correspondantes
+								while(iterator.hasNext()){
+									insertInto.add(iterator.next());
+								}
+
+								composantes.put(composanteKey, insertInto);
 							}
 						}
 					}
-					
-					// Si aucune composante n'a été sélectionnée pendant l'exploration des voisins, on place la composante provisoire à la fin
-					if(composanteKey == -1)
-						composanteKey = composantes.size();
-
-					Iterator<int[]> iterator = toAdd.iterator();
-					ArrayList<int[]> insertInto = composantes.get(composanteKey);
-
-					 if(insertInto == null)
-						insertInto = new ArrayList<int[]>();
-
-					// On ajoute les pixels découverts dans la composante correspondantes
-					while(iterator.hasNext()){
-						insertInto.add(iterator.next());
-					}
-
-					 composantes.put(composanteKey, insertInto);
 				}
 			}
 		}
@@ -256,7 +275,9 @@ public class Image2016_ implements PlugInFilter {
 	}
 
 	/**
-	 * Effectue la convolution de l'image 'ip' avec un masque carre. Le resultat d'un produit de convolution n'est pas forcement dans le meme domaine de definition que l'image d'origine. C'est pourquoi le resultat est stocke dans une matrice de nombres reels.
+	 * Effectue la convolution de l'image 'ip' avec un masque carre. Le resultat d'un produit de convolution n'est pas
+	 * forcement dans le meme domaine de definition que l'image d'origine. C'est pourquoi le resultat est stocke dans
+	 * une matrice de nombres reels.
 	 * 
 	 * @param ip
 	 *            L'image a convoluer.
@@ -265,9 +286,6 @@ public class Image2016_ implements PlugInFilter {
 	 * @return La matrice resultat.
 	 */
 	public static double[][] convoluer(ImageProcessor ip, Masque masque) {
-		/**
-		 * A faire: effectuer la convolution. Reflechir a la question des bords.
-		 */
 		// resultat: la matrice dans laquelle sera stocke le resultat de la convolution.
 		double[][] resultat = new double[ip.getWidth()][ip.getHeight()];
 
@@ -283,14 +301,15 @@ public class Image2016_ implements PlugInFilter {
 				}
 			}
 		}
-		/**
-		 * Fin de la partie a completer
-		 */
 		return resultat;
 	}
 
 	/**
-	 * Affiche une matrice de nombres reels dans une nouvelle fenetre. Comme les elements de cette matrice ne sont pas forcement dans le domaine [0..255], on a le choix entre: 1) normaliser: c'est-a-dire faire une mise a l'echelle de maniere a ce que la valeur la plus faible soit 0 et la valeur la plus haute 255. (voir TP1: etirement d'histogramme). 2) ne pas normaliser: tous les elements dont la valeur est inferieure a 0 sont fixes a 0 et tous les elements dont la valeur est superieure a 255 sont fixes a 255.
+	 * Affiche une matrice de nombres reels dans une nouvelle fenetre. Comme les elements de cette matrice ne sont pas
+	 * forcement dans le domaine [0..255], on a le choix entre: 1) normaliser: c'est-a-dire faire une mise a l'echelle
+	 * de maniere a ce que la valeur la plus faible soit 0 et la valeur la plus haute 255. (voir TP1: etirement
+	 * d'histogramme). 2) ne pas normaliser: tous les elements dont la valeur est inferieure a 0 sont fixes a 0 et tous
+	 * les elements dont la valeur est superieure a 255 sont fixes a 255.
 	 * 
 	 * @param mat
 	 *            La matrice a afficher.
@@ -410,7 +429,8 @@ public class Image2016_ implements PlugInFilter {
 		}
 
 		/**
-		 * Cree un nouveau masque de convolution. C'est un carre de cote (2 * rayon + 1). Tous les elements sont a 'valeurParDefaut'.
+		 * Cree un nouveau masque de convolution. C'est un carre de cote (2 * rayon + 1). Tous les elements sont a
+		 * 'valeurParDefaut'.
 		 * 
 		 * @param rayon
 		 *            Rayon du masque de convolution.
