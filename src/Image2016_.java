@@ -5,6 +5,7 @@ import ij.*;
 import ij.gui.*;
 import ij.plugin.filter.*;
 import ij.process.*;
+import ij.text.*;
 
 public class Image2016_ implements PlugInFilter {
 
@@ -17,12 +18,12 @@ public class Image2016_ implements PlugInFilter {
 		// Composantes Connexes
 		// TODO Pourquoi les composantes ne sont-elles pas enregistrées ?
 		HashMap<Integer, ArrayList<int[]>> composantes = getComposantes(ip2);
-
+		String buffer = "Taille de l'ArrayList"+composantes.size();
 		// Cadres
 		appliqueCadres(cadres(composantes, ip2), ip2);
 		// TODO Ajouter l'étude des composantes connexes
-
-		new ImageWindow(imp);
+//		ImageWindow im = new ImageWindow(imp);
+		TextWindow im = new TextWindow(buffer,400,400);
 	}
 
 	public int setup(String args, ImagePlus imp) {
@@ -68,9 +69,9 @@ public class Image2016_ implements PlugInFilter {
 
 		// TODO A retirer quand le débuggage des composantes sera fini
 		if(cadres.size() > 0)
-			couleur = 255;
-		else
 			couleur = 0;
+		else
+			couleur = 255;
 		int width = ip.getWidth(), height = ip.getHeight();
 
 		for(int i = 0; i < width / 2; i++){
